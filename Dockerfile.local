@@ -1,0 +1,9 @@
+# Local test image: stock ERPNext v15 with the metactical app (price-revision
+# branch) baked in, so every worker container can import it.
+FROM frappe/erpnext:v15.121.3
+USER root
+COPY --chown=frappe:frappe . /home/frappe/frappe-bench/apps/metactical
+USER frappe
+RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
+      python-barcode xmltodict pika pandas tqdm zeep PyMuPDF PyPDF2 boto3 \
+ && /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e /home/frappe/frappe-bench/apps/metactical
