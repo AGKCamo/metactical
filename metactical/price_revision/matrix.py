@@ -41,6 +41,7 @@ def _selling_lists():
 	)
 
 
+@frappe.whitelist()
 def rebuild_from_history(supplier_price_list=None, commit_every=50):
 	"""Recompute every markup from live Item Price data.
 
