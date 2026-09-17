@@ -81,6 +81,10 @@ def rebuild_from_history(supplier_price_list=None, commit_every=50):
 			                       AND sl.selling = 1 AND sl.enabled = 1
 			WHERE sup.price_list_rate > 0
 			  AND ret.price_list_rate > 0
+			  -- RET - CamoFRN - USD is flagged buying as well as selling, because
+			  -- franchisee companies buy at it. That is legitimate as a cost base,
+			  -- but a list against itself is always 1.0x and means nothing.
+			  AND sup.price_list <> ret.price_list
 			  AND ret.price_list_rate / sup.price_list_rate BETWEEN %(lo)s AND %(hi)s
 			  {where}
 		) t
