@@ -434,3 +434,40 @@ frappe.ui.form.on('Purchase Order', {
         }, __('View'));
     }
 });
+// --- Price Revision -------------------------------------------------------
+// Appended as its own form.on block so nothing above is disturbed; Frappe
+// merges handlers for the same doctype.
+frappe.ui.form.on("Purchase Order", {
+	refresh(frm) {
+		if (frm.doc.docstatus !== 1) return;
+
+		frm.add_custom_button(__("Price Revision"), () => {
+			frappe.call({
+				method: "metactical.price_revision.build.from_purchase_order",
+				args: { purchase_order: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Comparing confirmed costs against the supplier price list…"),
+				callback(r) {
+					if (r.message) frappe.set_route("Form", "Price Revision", r.message);
+				},
+			});
+		}, __("Create"));
+
+		// An outstanding revision is the whole point of the feature: goods
+		// arriving at a higher cost with retail untouched. Say so on the PO.
+		frappe.call({
+			method: "metactical.metactical.doctype.price_revision.price_revision.outstanding_for_purchase_order",
+			args: { purchase_order: frm.doc.name },
+			callback(r) {
+				const open = r.message || [];
+				if (!open.length) return;
+				const names = open.map((d) => `<a href="/app/price-revision/${d.name}">${d.name}</a>`).join(", ");
+				frm.dashboard.add_comment(
+					__("Costs on this order have moved and the price revision is still open: {0}. Retail has not been updated yet.", [names]),
+					"orange",
+					true
+				);
+			},
+		});
+	},
+});
