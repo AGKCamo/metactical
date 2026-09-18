@@ -298,3 +298,33 @@ frappe.ui.form.on('Supplier Order Confirmation V3', {
         });
     }
 });
+// --- Price Revision -------------------------------------------------------
+// The confirmation is where the supplier's NEW cost is recorded
+// (confirmed_rate). The native PO still carries the ordered cost, so a
+// revision started from there finds nothing to change. Start it here.
+frappe.ui.form.on("Supplier Order Confirmation V3", {
+	refresh(frm) {
+		if (frm.doc.docstatus !== 1) return;
+
+		const moved = (frm.doc.items || []).filter((d) => flt(d.rate_variance_pct));
+		if (!moved.length) return;
+
+		frm.add_custom_button(__("Price Revision"), () => {
+			frappe.call({
+				method: "metactical.price_revision.build.from_confirmation",
+				args: { confirmation: frm.doc.name },
+				freeze: true,
+				freeze_message: __("Pricing {0} changed line(s) across every banner…", [moved.length]),
+				callback(r) {
+					if (r.message) frappe.set_route("Form", "Price Revision", r.message);
+				},
+			});
+		}, __("Create"));
+
+		frm.dashboard.add_comment(
+			__("{0} line(s) confirmed at a different cost from the order. Create a Price Revision so retail follows.", [moved.length]),
+			"orange",
+			true
+		);
+	},
+});
