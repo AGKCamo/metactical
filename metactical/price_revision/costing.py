@@ -159,6 +159,7 @@ def build_price_line(
 	by_hold = suggest_preserve_margin(old_price, old_landed, new_landed, rounding)
 	suggested = by_matrix or by_hold
 
+	note = None
 	if cost_went_down:
 		proposed = _f(old_price)
 		action = "Hold"
@@ -168,10 +169,12 @@ def build_price_line(
 	else:
 		proposed = _f(old_price)
 		action = "Review"
+		note = "No markup for this list and no current price to carry the margin from."
 
 	# A price at or under landed cost is never a valid suggestion, on any list
 	if proposed and _f(new_landed) and proposed <= _f(new_landed):
 		action = "Review"
+		note = "At or under landed cost ({:.2f}); needs a price.".format(_f(new_landed))
 
 	new_margin = margin_pct(proposed, new_landed)
 	exempt = price_list in LOW_MARGIN_PRICE_LISTS
@@ -183,6 +186,7 @@ def build_price_line(
 	)
 	if below_floor:
 		action = "Review"
+		note = note or "Margin {:.1f}% is under the {:.0f}% floor.".format(new_margin, _f(min_margin_pct))
 
 	return {
 		"price_list": price_list,
@@ -200,4 +204,5 @@ def build_price_line(
 		"below_floor": below_floor,
 		"low_margin_exempt": exempt,
 		"action": action,
+		"note": note,
 	}

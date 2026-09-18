@@ -103,14 +103,28 @@ class PriceRevision(Document):
 					"price_list_rate",
 				) or 0
 
-				if new_in_ccy is None:
-					# a third currency — say so rather than invent a rate
-					rebuilt.append(self._row(item, pl_name, meta.currency, {
-						"old_price": old_price, "new_price": old_price,
-						"action": "Review",
-					}, note=_("{0} is in {1}; no rate from {2} on this revision.").format(
-						pl_name, meta.currency, self.supplier_currency)))
+				# A cost change revises the prices an item already has. It does
+				# not list the item on a banner that doesn't carry it today.
+				if not flt(old_price):
 					continue
+
+				fx_note = None
+				if new_in_ccy is None:
+					# A third currency, e.g. a CAD supplier on a USD banner. The
+					# PO's own rate only covers supplier -> company, so go on
+					# from the company currency at the latest exchange rate.
+					fx = self._fx(meta.currency)
+					if not fx:
+						rebuilt.append(self._row(item, pl_name, meta.currency, {
+							"old_price": old_price, "new_price": old_price,
+							"action": "Review",
+						}, note=_("{0} is in {1}; no exchange rate from {2} on file.").format(
+							pl_name, meta.currency, self.company_currency)))
+						continue
+					old_in_ccy = landed_old["company_ccy"] * fx
+					new_in_ccy = landed_new["company_ccy"] * fx
+					fx_note = _("Landed converted {0} -> {1} at {2}.").format(
+						self.company_currency, meta.currency, flt(fx, 4))
 
 				mx = matrix_lookup(self.buying_price_list, pl_name, item.item_code) or {}
 				line = build_price_line(
@@ -137,7 +151,7 @@ class PriceRevision(Document):
 						if flt(keep.new_price) else None
 					)
 
-				rebuilt.append(self._row(item, pl_name, meta.currency, line))
+				rebuilt.append(self._row(item, pl_name, meta.currency, line, note=fx_note))
 
 		self.set("prices", [])
 		for r in rebuilt:
@@ -163,9 +177,21 @@ class PriceRevision(Document):
 			"below_floor": 1 if line.get("below_floor") else 0,
 			"low_margin_exempt": 1 if line.get("low_margin_exempt") else 0,
 		}
+		note = " ".join(n for n in (line.get("note"), note) if n)
 		if note:
 			row["note"] = note
 		return row
+
+	def _fx(self, to_currency):
+		"""Company currency -> ``to_currency``, cached for the recalculation."""
+		cache = self.__dict__.setdefault("_fx_cache", {})
+		if to_currency not in cache:
+			from erpnext.setup.utils import get_exchange_rate
+
+			cache[to_currency] = flt(get_exchange_rate(
+				self.company_currency, to_currency, self.effective_from or nowdate(), "for_selling"
+			))
+		return cache[to_currency]
 
 	def roll_up_summary(self):
 		self.total_items = len(self.items or [])
