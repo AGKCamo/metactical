@@ -7,3 +7,19 @@ USER frappe
 RUN /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir \
       python-barcode xmltodict pika pandas tqdm zeep PyMuPDF PyPDF2 boto3 \
  && /home/frappe/frappe-bench/env/bin/pip install --no-cache-dir -e /home/frappe/frappe-bench/apps/metactical
+
+# Compile the app's JS/Vue into the image. At runtime sites/assets is a symlink
+# to bench/assets, so the bundle's link and manifest entries go there too.
+# desk.bundle.js and erpnext.bundle.js already fail to build upstream (a broken
+# frappe_public import), so they are set aside for the build and put back.
+ENV PATH=/home/frappe/.nvm/versions/node/v22.23.2/bin:$PATH
+RUN cd /home/frappe/frappe-bench \
+ && (grep -qx metactical sites/apps.txt || printf '\nmetactical\n' >> sites/apps.txt) \
+ && sed -i '/^$/d' sites/apps.txt \
+ && P=apps/metactical/metactical/public/js && mkdir -p /tmp/aside \
+ && mv $P/desk.bundle.js $P/erpnext.bundle.js /tmp/aside/ \
+ && bench build --app metactical \
+ && mv /tmp/aside/*.js $P/ \
+ && cp sites/assets/assets.json /home/frappe/metactical-assets.json \
+ && ln -sfn /home/frappe/frappe-bench/apps/metactical/metactical/public assets/metactical \
+ && env/bin/python -c "import json; a=json.load(open('assets/assets.json')); b=json.load(open('/home/frappe/metactical-assets.json')); a.update({k:v for k,v in b.items() if v.startswith('/assets/metactical/')}); json.dump(a, open('assets/assets.json','w'), indent=4)"
