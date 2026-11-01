@@ -9,7 +9,11 @@
   "default_rejected_warehouse",
   "claims_warehouse",
   "col_ps1",
-  "posting_enabled"
+  "posting_enabled",
+  "procurement_v3_build",
+  "sec_notify",
+  "notify_on_short_receipt",
+  "short_receipt_notify"
  ],
  "fields": [
   {
@@ -35,13 +39,40 @@
    "fieldtype": "Link",
    "label": "Claims Holding Warehouse",
    "options": "Warehouse"
+  },
+  {
+   "description": "Which build of the PO -> confirmation -> shipment -> receipt chain this site is running. See PROCUREMENT-V3-CHANGELOG.md in the app for what each build changed and how to go back.",
+   "fieldname": "procurement_v3_build",
+   "fieldtype": "Data",
+   "label": "Procurement V3 Build",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_notify",
+   "fieldtype": "Section Break",
+   "label": "Short Delivery Alerts"
+  },
+  {
+   "default": "1",
+   "description": "Sent once per shipment, when every line on it has been counted and something was missing.",
+   "fieldname": "notify_on_short_receipt",
+   "fieldtype": "Check",
+   "label": "Email When A Shipment Arrives Short"
+  },
+  {
+   "default": "accounting@goldenplazadistributors.com, po@goldenplazadistributors.com",
+   "description": "Comma separated. Lines the supplier already said were back-ordered or cancelled are never reported as short.",
+   "fieldname": "short_receipt_notify",
+   "fieldtype": "Small Text",
+   "label": "Short Delivery Recipients"
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-10-21 15:19:00.944769",
+ "modified": "2026-11-01 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Metactical",
  "name": "Procurement Settings V3",

@@ -145,5 +145,12 @@
   "modified": "2026-08-12 13:02:23.071109",
   "name": "Close Short",
   "workflow_action_name": "Close Short"
+ },
+ {
+  "docstatus": 0,
+  "doctype": "Workflow Action Master",
+  "modified": "2026-11-01 12:00:00.000000",
+  "name": "Mark Partially Received",
+  "workflow_action_name": "Mark Partially Received"
  }
 ]

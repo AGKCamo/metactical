@@ -4,6 +4,7 @@
 import frappe
 from frappe.model.document import Document
 
+from metactical.procurement_v3 import inbound
 from metactical.procurement_v3.taxes import copy_taxes_to_native
 from metactical.procurement_v3.utils import (
 	F,
@@ -26,6 +27,7 @@ class PurchaseReceiptV3(Document):
 
 	def on_submit(self):
 		post_to_po3(self)
+		inbound.settle_shipment(self)
 
 	def before_cancel(self):
 		cancel_guard(self)
@@ -405,19 +407,10 @@ def validate(doc):
 			frappe.throw("This receipt has rejected quantity - set the Rejected Goods Warehouse (or a default in Procurement Settings V3).")
 
 	# ---- counting it means it physically arrived --------------------
-	if doc.inbound_shipment_v3 and doc.workflow_state not in (None, "", "Draft"):
-		st = frappe.db.get_value("Inbound Shipment V3", doc.inbound_shipment_v3,
-			["workflow_state", "docstatus"], as_dict=True)
-		if st and st.docstatus == 0 and st.workflow_state in ("Draft", "In Transit"):
-			try:
-				ship = frappe.get_doc("Inbound Shipment V3", doc.inbound_shipment_v3)
-				ship.workflow_state = "Received"
-				ship.docstatus = 1
-				ship.save()
-				frappe.msgprint("Inbound Shipment " + doc.inbound_shipment_v3
-					+ " marked <b>Received</b> - you are counting it, so it is here.")
-			except Exception:
-				pass
+	# Counting part of a shipment does not mean the whole thing turned up, so
+	# the state is settled from what has been counted across every receipt
+	# against it - see procurement_v3.inbound.settle_shipment. That runs after
+	# the receipt is submitted, when its own lines are part of the total.
 
 	# ---- counted more than the shipment says it carried ---------------
 	# The variance code alone reads as a quantity, not as a problem. Say it in
