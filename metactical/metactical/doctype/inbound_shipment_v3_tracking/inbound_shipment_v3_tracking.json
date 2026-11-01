@@ -1,0 +1,125 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "creation": "2026-11-01 10:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "tracking_no",
+  "is_master",
+  "carrier",
+  "carrier_service",
+  "tracking_url",
+  "carrier_status",
+  "carrier_eta",
+  "delivered_on",
+  "last_checked",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "allow_on_submit": 1,
+   "columns": 3,
+   "fieldname": "tracking_no",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Tracking No",
+   "reqd": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "columns": 1,
+   "default": "0",
+   "description": "The number the carrier hangs the others off. Exactly one row carries it.",
+   "fieldname": "is_master",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Master"
+  },
+  {
+   "allow_on_submit": 1,
+   "columns": 2,
+   "description": "Leave blank to ride on the shipment’s carrier.",
+   "fieldname": "carrier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Carrier",
+   "options": "Supplier"
+  },
+  {
+   "allow_on_submit": 1,
+   "description": "Filtered to the carrier chosen above.",
+   "fieldname": "carrier_service",
+   "fieldtype": "Link",
+   "label": "Service",
+   "options": "Carrier Service"
+  },
+  {
+   "columns": 2,
+   "description": "Built from the carrier’s tracking URL template.",
+   "fieldname": "tracking_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Track",
+   "options": "URL",
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "columns": 2,
+   "fieldname": "carrier_status",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Carrier Status",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "carrier_eta",
+   "fieldtype": "Date",
+   "label": "Carrier ETA",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "delivered_on",
+   "fieldtype": "Date",
+   "label": "Delivered On",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "last_checked",
+   "fieldtype": "Datetime",
+   "label": "Last Checked",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
+   "fieldname": "remarks",
+   "fieldtype": "Data",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-11-01 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Metactical",
+ "name": "Inbound Shipment V3 Tracking",
+ "owner": "Administrator",
+ "permissions": [],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "idx",
+ "sort_order": "ASC",
+ "states": [],
+ "track_changes": 0
+}

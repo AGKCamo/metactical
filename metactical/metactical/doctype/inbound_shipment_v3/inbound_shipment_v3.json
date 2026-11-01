@@ -14,9 +14,23 @@
   "supplier_order_confirmation_v3",
   "cb_main",
   "ship_date",
+  "ship_date_source",
   "expected_arrival",
+  "eta_source",
+  "arrived_on",
+  "days_late",
+  "sec_route",
+  "destination_warehouse",
+  "ship_to_display",
+  "cb_route",
+  "route",
+  "route_days",
+  "carrier_eta",
+  "sec_carrier",
   "carrier",
   "carrier_service",
+  "add_tracking",
+  "tracking",
   "tracking_no",
   "tracking_url",
   "sec_items",
@@ -37,7 +51,8 @@
  "fields": [
   {
    "fieldname": "sec_main",
-   "fieldtype": "Section Break"
+   "fieldtype": "Section Break",
+   "label": "Shipment"
   },
   {
    "columns": 2,
@@ -85,6 +100,15 @@
    "label": "Ship Date"
   },
   {
+   "description": "Where the ship date came from. A date you type yourself always wins.",
+   "fieldname": "ship_date_source",
+   "fieldtype": "Select",
+   "label": "Ship Date From",
+   "no_copy": 1,
+   "options": "\nManual\nSupplier Invoice\nPromised Ship Date\nCarrier Pickup",
+   "read_only": 1
+  },
+  {
    "allow_on_submit": 1,
    "columns": 1,
    "fieldname": "expected_arrival",
@@ -93,7 +117,85 @@
    "label": "Expected Arrival"
   },
   {
+   "description": "Expected Arrival is what the stores see on the POS. Edit it freely - a hand-set date is never overwritten.",
+   "fieldname": "eta_source",
+   "fieldtype": "Select",
+   "label": "ETA From",
+   "no_copy": 1,
+   "options": "\nManual\nTransit Days\nCarrier API",
+   "read_only": 1
+  },
+  {
+   "description": "Stamped when the shipment is marked Received.",
+   "fieldname": "arrived_on",
+   "fieldtype": "Date",
+   "label": "Arrived On",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "depends_on": "eval:doc.arrived_on",
+   "fieldname": "days_late",
+   "fieldtype": "Int",
+   "label": "Days Late",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_route",
+   "fieldtype": "Section Break",
+   "label": "Destination & Route"
+  },
+  {
+   "description": "The parent stock warehouse the goods are destined for. Bins are chosen at receiving.",
+   "fieldname": "destination_warehouse",
+   "fieldtype": "Link",
+   "label": "Destination Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "ship_to_display",
+   "fieldtype": "Small Text",
+   "label": "Ship To",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "cb_route",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Direct",
+   "description": "Cross-docked freight clears and re-ships, which adds days on top of the carrier's own transit time.",
+   "fieldname": "route",
+   "fieldtype": "Select",
+   "label": "Route",
+   "options": "Direct\nVia Blaine (cross-dock)\nVia Other Consolidator"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.route && doc.route != 'Direct'",
+   "description": "Added to the carrier's arrival date to give the final ETA. Defaults to 2; raise it if the load is held at customs.",
+   "fieldname": "route_days",
+   "fieldtype": "Int",
+   "label": "Extra Days For Route"
+  },
+  {
+   "description": "When the carrier gets it to the route's first stop. Expected Arrival is this plus the route days.",
+   "fieldname": "carrier_eta",
+   "fieldtype": "Date",
+   "label": "Carrier Arrival",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "sec_carrier",
+   "fieldtype": "Section Break",
+   "label": "Carrier & Tracking"
+  },
+  {
    "allow_on_submit": 1,
+   "description": "The main carrier. A tracking row may name a different one.",
    "fieldname": "carrier",
    "fieldtype": "Link",
    "label": "Carrier",
@@ -108,32 +210,53 @@
   },
   {
    "allow_on_submit": 1,
-   "fieldname": "tracking_no",
+   "description": "Type or paste a number and press Enter. Paste several at once separated by spaces, commas or new lines.",
+   "fieldname": "add_tracking",
    "fieldtype": "Data",
-   "label": "Tracking No"
+   "label": "Add Tracking Number",
+   "no_copy": 1
   },
   {
+   "allow_on_submit": 1,
+   "fieldname": "tracking",
+   "fieldtype": "Table",
+   "label": "Tracking Numbers",
+   "options": "Inbound Shipment V3 Tracking"
+  },
+  {
+   "allow_on_submit": 1,
+   "description": "The master number from the table below. Kept so older reports and prints keep working.",
+   "fieldname": "tracking_no",
+   "fieldtype": "Data",
+   "label": "Master Tracking No",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "allow_on_submit": 1,
    "description": "Built from the carrier’s tracking URL template.",
    "fieldname": "tracking_url",
    "fieldtype": "Data",
-   "label": "Track",
+   "label": "Track Master",
    "options": "URL",
    "read_only": 1,
    "length": 1000
   },
   {
+   "collapsible": 1,
    "fieldname": "sec_items",
    "fieldtype": "Section Break",
    "label": "Packing List — Items"
   },
   {
+   "description": "Filled from the supplier confirmation. The confirmation is the record of what was ordered and confirmed - this is here so receiving knows what to expect.",
    "fieldname": "items",
    "fieldtype": "Table",
    "label": "Items",
-   "options": "Inbound Shipment V3 Item",
-   "reqd": 1
+   "options": "Inbound Shipment V3 Item"
   },
   {
+   "collapsible": 1,
    "fieldname": "sec_boxes",
    "fieldtype": "Section Break",
    "label": "Packing List — Boxes"
@@ -145,6 +268,7 @@
    "options": "Inbound Shipment V3 Box"
   },
   {
+   "collapsible": 1,
    "fieldname": "sec_tot",
    "fieldtype": "Section Break",
    "label": "Totals"
@@ -209,7 +333,7 @@
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-19 21:30:00.000000",
+ "modified": "2026-11-01 10:00:00.000000",
  "modified_by": "Administrator",
  "module": "Metactical",
  "name": "Inbound Shipment V3",

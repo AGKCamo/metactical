@@ -3,6 +3,28 @@
 
 // Migrated from Client Script "Purchase Order V3 Form" (Form view).
 
+// An order can carry several confirmations - a back-ordered balance is raised
+// as its own - and each of those has its own shipment, so this lists them all
+// rather than assuming one.
+function po3_shipment_links(frm) {
+    frappe.db.get_list('Inbound Shipment V3', {
+        filters: { purchase_order_v3: frm.doc.name, docstatus: ['<', 2] },
+        fields: ['name', 'workflow_state', 'expected_arrival'],
+        order_by: 'creation asc',
+        limit: 20
+    }).then(function(rows) {
+        (rows || []).forEach(function(s) {
+            var eta = s.expected_arrival
+                ? frappe.datetime.str_to_user(s.expected_arrival)
+                : __('no ETA');
+            frm.add_custom_button(
+                __('{0} ({1}, {2})', [s.name, s.workflow_state || __('Draft'), eta]),
+                function() { frappe.set_route('Form', 'Inbound Shipment V3', s.name); },
+                __('Shipments'));
+        });
+    });
+}
+
 function po3_new_linked(doctype, po_name) {
     frappe.model.with_doctype(doctype, function() {
         var doc = frappe.model.get_new_doc(doctype);
@@ -495,9 +517,11 @@ frappe.ui.form.on('Purchase Order V3', {
                 po3_new_linked(doctype, frm.doc.name);
             }, __('Create'));
         };
-        mk('Inbound Shipment', 'Inbound Shipment V3');
+        // No Create → Inbound Shipment here on purpose. A shipment belongs to
+        // the confirmation it was invoiced on, and that is where it is raised.
         mk('Purchase Receipt 3', 'Purchase Receipt V3');
         mk('Supplier Claim', 'Supplier Claim V3');
+        po3_shipment_links(frm);
         if (frm.doc.erp_purchase_order) {
             frm.add_custom_button(__('Native PO'), function() {
                 frappe.set_route('Form', 'Purchase Order', frm.doc.erp_purchase_order);
