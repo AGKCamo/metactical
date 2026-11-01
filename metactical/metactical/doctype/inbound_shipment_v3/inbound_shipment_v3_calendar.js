@@ -15,7 +15,8 @@ frappe.views.calendar['Inbound Shipment V3'] = {
     get_css_class: function (data) {
         if (data.workflow_state === 'Received') return 'success';
         if (data.workflow_state === 'Cancelled') return 'danger';
-        if (data.workflow_state === 'In Transit') return 'warning';
+        if (data.workflow_state === 'In Transit'
+            || data.workflow_state === 'Partially Received') return 'warning';
         return 'info';
     },
     get_events_method: 'frappe.desk.calendar.get_events'

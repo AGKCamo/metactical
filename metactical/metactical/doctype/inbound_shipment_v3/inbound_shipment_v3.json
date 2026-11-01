@@ -19,6 +19,7 @@
   "eta_source",
   "arrived_on",
   "days_late",
+  "short_notified_on",
   "sec_route",
   "destination_warehouse",
   "ship_to_display",
@@ -238,9 +239,9 @@
    "fieldname": "tracking_url",
    "fieldtype": "Data",
    "label": "Track Master",
+   "length": 1000,
    "options": "URL",
-   "read_only": 1,
-   "length": 1000
+   "read_only": 1
   },
   {
    "collapsible": 1,
@@ -327,13 +328,21 @@
    "no_copy": 1,
    "options": "Inbound Shipment V3",
    "read_only": 1
+  },
+  {
+   "description": "Set when the short-delivery email went out, so a later receipt does not raise it again.",
+   "fieldname": "short_notified_on",
+   "fieldtype": "Datetime",
+   "label": "Short Delivery Reported On",
+   "no_copy": 1,
+   "read_only": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-11-01 10:00:00.000000",
+ "modified": "2026-11-01 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Metactical",
  "name": "Inbound Shipment V3",

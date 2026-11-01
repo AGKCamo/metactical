@@ -342,6 +342,95 @@ def eta_message(old, new, who):
 # of shipments into a view of which carriers and suppliers deliver when they
 # said they would.
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# Settling a shipment against what has actually been counted.
+#
+# A container received over two days is one shipment and two receipts, so the
+# question is never "was this receipt counted" but "is anything on this
+# shipment still outstanding". Until the answer is no it stays open as
+# Partially Received, where it is still visibly inbound rather than closed with
+# lines nobody ever saw.
+# ---------------------------------------------------------------------------
+PARTIAL = "Partially Received"
+
+
+# An order line in one of these is finished - whatever did not arrive is not
+# going to. Kept beside the settle logic rather than derived from TERMINAL_LINE
+# further down, so the two can be read without scrolling between them.
+SETTLED_LINE = ("Received", "Closed Short", "Cancelled",
+	"Supplier Stock Out", "Discontinued", "Substituted")
+
+
+def outstanding_on_shipment(shipment, exclude=None):
+	"""Shipment lines still genuinely waiting on goods, as {key: qty}.
+
+	A line counted short and then closed short is finished - the goods are not
+	coming, and the order says so. Leaving it here would hold the shipment open
+	forever and mean the short delivery was never reported, which is the one
+	case that most needs reporting.
+	"""
+	from metactical.metactical.doctype.purchase_receipt_v3.purchase_receipt_v3 import (
+		shipment_balance)
+
+	shipped, taken = shipment_balance(shipment, exclude)
+	left = {}
+	for key, qty in shipped.items():
+		short = float(qty) - float(taken.get(key, 0))
+		if short <= 0.0000001:
+			continue
+		# a string key is a PO3 line; an item-only key has no line to close
+		if isinstance(key, str):
+			status = frappe.db.get_value("Purchase Order V3 Item", key, "line_status")
+			if status in SETTLED_LINE:
+				continue
+		left[key] = short
+	return left
+
+
+def settle_shipment(receipt):
+	"""Move the shipment on after a receipt is posted against it.
+
+	Everything covered -> Received, and the shipment is submitted. Anything
+	still due -> Partially Received, left open for the rest to arrive.
+	"""
+	from metactical.procurement_v3 import notify
+
+	shipment = receipt.inbound_shipment_v3
+	if not shipment:
+		return
+
+	state = frappe.db.get_value("Inbound Shipment V3", shipment,
+		["workflow_state", "docstatus"], as_dict=True)
+	if not state or state.docstatus != 0:
+		return
+	if state.workflow_state not in ("Draft", "In Transit", PARTIAL):
+		return
+
+	left = outstanding_on_shipment(shipment)
+
+	doc = frappe.get_doc("Inbound Shipment V3", shipment)
+	if left:
+		if doc.workflow_state != PARTIAL:
+			doc.db_set("workflow_state", PARTIAL, update_modified=False)
+			doc.add_comment("Comment", "Part of this shipment has been counted on "
+				+ receipt.name + "; " + str(len(left)) + " line(s) still outstanding.")
+			frappe.msgprint("Inbound Shipment <b>" + shipment + "</b> is now "
+				"<b>" + PARTIAL + "</b> - " + str(len(left)) + " line(s) have not "
+				"been counted yet.", indicator="orange", alert=True)
+		return
+
+	# nothing left to come: it is here, all of it
+	stamp_arrival(doc)
+	doc.db_set("workflow_state", "Received", update_modified=False)
+	doc.db_set("docstatus", 1, update_modified=False)
+	frappe.msgprint("Inbound Shipment <b>" + shipment + "</b> marked "
+		"<b>Received</b> - every line on it has now been counted.",
+		indicator="green", alert=True)
+
+	# whether it arrived whole is a different question from whether it arrived
+	notify.short_shipment(shipment)
+
+
 def stamp_arrival(doc):
 	if not doc.arrived_on:
 		doc.arrived_on = frappe.utils.nowdate()

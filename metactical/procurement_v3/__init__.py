@@ -6,4 +6,4 @@
 # this is what says which procurement build a site is running. It is shown on
 # Procurement Settings V3 and recorded in PROCUREMENT-V3-CHANGELOG.md, which
 # carries the rollback steps for each one.
-BUILD = 2
+BUILD = 3

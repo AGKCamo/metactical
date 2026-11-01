@@ -46,3 +46,5 @@ metactical.patches.gearstock.upsert_items
 metactical.patches.resave_item_prices_for_webhooks
 metactical.patches.cancel_duplicate_zero_invoices_for_icl_dns
 metactical.patches.move_ins3_tracking_to_table
+metactical.patches.add_partially_received_to_ins3_workflow
+metactical.patches.short_receipt_notify_defaults

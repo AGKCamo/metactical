@@ -16,8 +16,10 @@ frappe.listview_settings['Inbound Shipment V3'].add_fields =
 frappe.listview_settings['Inbound Shipment V3'].formatters = Object.assign(
     {}, frappe.listview_settings['Inbound Shipment V3'].formatters, {
         expected_arrival: function(value, df, doc) {
+            var inbound = doc.workflow_state === 'In Transit'
+                || doc.workflow_state === 'Partially Received';
             if (!value) {
-                return doc.workflow_state === 'In Transit'
+                return inbound
                     ? '<span style="color:var(--orange-600)">' + __('no ETA') + '</span>'
                     : '';
             }
@@ -29,7 +31,7 @@ frappe.listview_settings['Inbound Shipment V3'].formatters = Object.assign(
                         + __('({0}d late)', [late]) + '</span>'
                     : shown;
             }
-            if (doc.workflow_state === 'In Transit'
+            if (inbound
                     && frappe.datetime.get_day_diff(frappe.datetime.get_today(), value) > 0) {
                 return '<span style="color:var(--red-600)"><b>' + shown + '</b> '
                     + __('overdue') + '</span>';

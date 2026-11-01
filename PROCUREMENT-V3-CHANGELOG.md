@@ -8,6 +8,108 @@ The app's own `__version__` covers all of metactical and is not touched here.
 
 ---
 
+## Build 3 — 2026-11-01 — Shipments settle themselves, and a short delivery tells somebody
+
+Same branch as build 2.
+
+### What changed
+
+**A shipment is Received when it has all arrived, not when someone starts counting.**
+
+Until now the first receipt counted against a shipment closed the whole thing as
+Received — including lines nobody had seen. A container received over two days
+is one shipment and two receipts, so the state is now settled from what has
+actually been counted across *every* receipt against it:
+
+| | |
+|---|---|
+| Some lines still due | **Partially Received** — stays open, a note says how many are outstanding |
+| Everything counted | **Received**, submitted, arrival stamped |
+| Lines counted short and then closed short on the order | **Received** — what did not arrive is not coming |
+
+That last row matters: without it a short line would hold the shipment open
+forever and the short delivery would never be reported, which is the one case
+that most needs reporting.
+
+**Partially Received** is a new workflow state (draft, Stock User), added by a
+patch because workflows live in the database rather than in the app. It sits
+between In Transit and Received, and can be moved back to In Transit.
+
+**A short delivery is emailed to accounting and the buyers.** Once per shipment,
+when it settles as Received with something missing:
+
+- **Short** — what the shipment said it carried against what was counted
+- **Boxes** — any on the packing list that were never checked in
+- **Rejected** — arrived but failed inspection, reported separately because it
+  is a different conversation with the supplier
+- supplier, order, confirmation, carrier, tracking, expected and actual arrival,
+  and links to all three documents
+
+Lines the confirmation already recorded as back-ordered, cancelled, discontinued
+or out of stock are **never** reported as short — their absence is the plan, and
+reporting them would train people to ignore the alert.
+
+Recipients default to `accounting@goldenplazadistributors.com` and
+`po@goldenplazadistributors.com`, and are editable on Procurement Settings V3
+along with a switch to turn the alert off.
+
+**Receiving never fails because of mail.** If the send throws, it is logged, a
+note goes on the shipment, and the stamp is deliberately left unset so the next
+receipt tries again. The goods are booked in either way.
+
+### Files
+
+| | |
+|---|---|
+| New | `procurement_v3/notify.py`, `patches/add_partially_received_to_ins3_workflow.py`, `patches/short_receipt_notify_defaults.py` |
+| Changed | `procurement_v3/inbound.py` (settle_shipment, outstanding_on_shipment), `purchase_receipt_v3.py`, `inbound_shipment_v3.json`, `procurement_settings_v3.json`, `inbound_shipment_v3_list.js`, `inbound_shipment_v3_calendar.js`, `patches.txt`, `procurement_v3/__init__.py` |
+
+### Schema and data
+
+- New workflow state `Partially Received` on `Inbound Shipment V3 Flow`, with
+  transitions to and from In Transit and on to Received.
+- New field on `Inbound Shipment V3`: `short_notified_on`.
+- New fields on `Procurement Settings V3`: `notify_on_short_receipt`,
+  `short_receipt_notify`.
+- `short_receipt_notify_defaults` writes the recipients and switches the alert
+  on, because a field default in a doctype JSON only applies to a document
+  being created and this Single already exists everywhere.
+
+### Rolling back to build 2
+
+1. Deploy build 2's commit and run `bench --site <site> migrate`.
+2. Drop the workflow state and put any shipment using it back:
+   ```sql
+   DELETE FROM `tabWorkflow Transition`
+     WHERE parent = 'Inbound Shipment V3 Flow'
+       AND (state = 'Partially Received' OR next_state = 'Partially Received');
+   DELETE FROM `tabWorkflow Document State`
+     WHERE parent = 'Inbound Shipment V3 Flow' AND state = 'Partially Received';
+   DELETE FROM `tabWorkflow State` WHERE name = 'Partially Received';
+   UPDATE `tabInbound Shipment V3`
+      SET workflow_state = 'In Transit' WHERE workflow_state = 'Partially Received';
+   DELETE FROM `tabPatch Log`
+     WHERE patch IN ('metactical.patches.add_partially_received_to_ins3_workflow',
+                     'metactical.patches.short_receipt_notify_defaults');
+   ```
+3. The settings and `short_notified_on` are additive; clear them only if you
+   want the tables clean:
+   ```sql
+   DELETE FROM `tabSingles` WHERE doctype = 'Procurement Settings V3'
+     AND field IN ('notify_on_short_receipt', 'short_receipt_notify');
+   ALTER TABLE `tabInbound Shipment V3` DROP COLUMN short_notified_on;
+   ```
+4. Build 2's behaviour returns: a receipt closes its shipment as Received on the
+   first count. No order, receipt or shipment loses a quantity or a status.
+
+### Known limits
+
+- Rejected quantities are reported but do not themselves hold a shipment open.
+- The alert is email only. If these should also land in Rocket.Chat, that is the
+  same hook and a second recipient.
+
+---
+
 ## Build 2 — 2026-11-01 — Inbound shipment: created from the confirmation, many tracking numbers, routes and ETAs
 
 Branch `feature/inbound-shipment-v3-develop`, cut from `version-15-develop`.
