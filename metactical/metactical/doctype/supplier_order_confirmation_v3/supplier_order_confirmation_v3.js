@@ -231,6 +231,71 @@ function soc3_import(frm) {
     d.show();
 }
 
+// ---------------------------------------------------------------------------
+// The shipment belongs to the confirmation.
+//
+// The confirmation is raised off the supplier's invoice, so this is the desk
+// the tracking email lands on. Submitting a confirmation opens the shipment by
+// itself; this button is for opening it again, and for the odd case where the
+// automatic one could not be created.
+// ---------------------------------------------------------------------------
+function soc3_open_shipment(frm, another) {
+    frappe.call({
+        method: 'metactical.procurement_v3.inbound.open_shipment',
+        args: { confirmation: frm.doc.name, another: another ? 1 : 0 },
+        freeze: true,
+        freeze_message: __('Opening shipment…'),
+        callback: function(res) {
+            if (res.message && res.message.name) {
+                frappe.set_route('Form', 'Inbound Shipment V3', res.message.name);
+            }
+        }
+    });
+}
+
+function soc3_shipment_button(frm) {
+    if (frm.doc.docstatus !== 1) return;
+    frappe.call({
+        method: 'metactical.procurement_v3.inbound.shipment_state',
+        args: { confirmation: frm.doc.name },
+        callback: function(res) {
+            var m = res.message || {};
+            var shipments = m.shipments || [];
+
+            shipments.forEach(function(s) {
+                var eta = s.expected_arrival
+                    ? frappe.datetime.str_to_user(s.expected_arrival)
+                    : __('no ETA');
+                frm.add_custom_button(
+                    __('{0} ({1}, {2})', [s.name, s.workflow_state || __('Draft'), eta]),
+                    function() { frappe.set_route('Form', 'Inbound Shipment V3', s.name); },
+                    __('View'));
+            });
+
+            if (!shipments.length) {
+                frm.dashboard.add_comment(
+                    __('No inbound shipment on this confirmation yet - carrier, tracking and ETA have nowhere to go.'),
+                    'orange', true);
+                frm.add_custom_button(__('Inbound Shipment'), function() {
+                    soc3_open_shipment(frm, false);
+                }, __('Create')).addClass('btn-primary');
+                return;
+            }
+
+            // A supplier holding part of the order back ships the balance
+            // later, as its own delivery with its own carrier and tracking.
+            if (m.balance) {
+                frm.add_custom_button(__('Another Shipment ({0} line(s) still due)', [m.balance]),
+                    function() {
+                        frappe.confirm(
+                            __('{0} line(s) on this order have not shipped yet. Raise a second shipment for that balance?', [m.balance]),
+                            function() { soc3_open_shipment(frm, true); });
+                    }, __('Create'));
+            }
+        }
+    });
+}
+
 frappe.ui.form.on('Supplier Order Confirmation V3', {
     purchase_order_v3: function(frm) {
         frm._soc3_autopull = true;
@@ -258,6 +323,7 @@ frappe.ui.form.on('Supplier Order Confirmation V3', {
                 frappe.set_route('Form', 'Purchase Order V3', frm.doc.purchase_order_v3);
             }, __('View'));
         }
+        soc3_shipment_button(frm);
         // Same actions on the Lines grid, where an operator is actually working.
         if (frm.fields_dict.items && frm.fields_dict.items.grid) {
             var grid = frm.fields_dict.items.grid;

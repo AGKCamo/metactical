@@ -6,6 +6,7 @@ import json
 import frappe
 from frappe.model.document import Document
 
+from metactical.procurement_v3 import inbound
 from metactical.procurement_v3.utils import F, mirror_po3_status
 
 
@@ -15,6 +16,7 @@ class SupplierOrderConfirmationV3(Document):
 
 	def on_submit(self):
 		mirror_to_po3(self)
+		inbound.auto_create_shipment(self)
 
 	def before_cancel(self):
 		cancel_guard(self)
