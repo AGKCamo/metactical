@@ -8,6 +8,83 @@ The app's own `__version__` covers all of metactical and is not touched here.
 
 ---
 
+## Build 4 — 2026-11-01 — The Partially Received state actually sticks
+
+Same branch as builds 2 and 3. **Build 3's main behaviour did not work on a
+migrated site**; this is the fix, found by restoring deverp's own database
+locally and verifying against it.
+
+### What was wrong
+
+`Partially Received` was added by a patch, because workflows live in the
+database rather than in the app. But `Workflow` is a registered fixture
+(`hooks.py`), and `bench migrate` syncs fixtures **after** it runs patches - so
+the exported `fixtures/workflow.json`, which predates the state, overwrote it.
+
+The patch reported success, because it does succeed: it saves and commits, and
+only then prints. The fixture import that undid it minutes later says nothing at
+all. On the restored deverp data the result was a workflow with its original four
+states and no transition into Partially Received - build 3's headline behaviour
+silently inert, and a receipt that counted short would have gone straight back
+to closing the shipment as Received.
+
+Proven rather than inferred, on the restored site:
+
+```
+after patch   : [Draft, In Transit, Received, Cancelled, Partially Received] 6 transitions
+after fixtures: [Draft, In Transit, Received, Cancelled]                     3 transitions
+```
+
+### What changed
+
+The state now lives in the fixture as well as the patch, so the two agree
+whichever runs last:
+
+| | |
+|---|---|
+| `fixtures/workflow.json` | `Partially Received` document state and its three transitions on Inbound Shipment V3 Flow |
+| `fixtures/workflow_action_master.json` | the `Mark Partially Received` action |
+| `hooks.py` | that action added to the Workflow Action Master fixture filter |
+
+The patch is kept and unchanged. It is what gives the state to a site that is
+already running, and its `ensure_action` is what lets the fixture's workflow
+import at all on deverp, where the action master does not yet exist. Fixtures
+import action masters before workflows, so a fresh install works from the
+fixtures alone.
+
+### Files
+
+| | |
+|---|---|
+| Changed | `fixtures/workflow.json`, `fixtures/workflow_action_master.json`, `hooks.py`, `procurement_v3/__init__.py` |
+
+### Schema and data
+
+No schema change. The fixture carries the same workflow rows the build 3 patch
+created, so a site that already ran build 3 ends up in exactly the same state.
+
+### Rolling back to build 3
+
+Build 3's code plus this build's fixtures is the broken combination, so roll the
+fixtures back with the code:
+
+1. Deploy build 3's commit and run `bench --site <site> migrate`.
+2. The build 3 fixtures then remove the state on the next fixture sync by
+   themselves. To do it immediately, use build 3's rollback SQL.
+
+### Known limits
+
+- `fixtures/workflow_action_master.json` is still missing five actions its own
+  workflows reference (`Confirm`, `Flag Discrepancy`, `Mark In Transit`,
+  `Mark Received`, `Submit for Approval`). They exist on deverp from manual
+  setup, so a fresh site install would likely fail importing the workflows.
+  Pre-existing and left alone here - it is the devs' fixture export to correct.
+- Any workflow change made in the Workflow UI on a site is overwritten by the
+  next migrate for the same reason. That applies to all five V3 flows, not just
+  this one.
+
+---
+
 ## Build 3 — 2026-11-01 — Shipments settle themselves, and a short delivery tells somebody
 
 Same branch as build 2.

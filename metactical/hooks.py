@@ -1658,6 +1658,7 @@ fixtures = [{
 			"Close Short",
 			"Finish Counting",
 			"Mark Acknowledged",
+			"Mark Partially Received",
 			"Mark Resolved",
 			"Mark Sent",
 			"Open Claim",
